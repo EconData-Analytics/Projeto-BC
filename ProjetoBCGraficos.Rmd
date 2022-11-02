@@ -17,6 +17,7 @@ library(rbcb)
 library(lubridate)
 library(zoo)
 library(RcppRoll)
+library(scales)
 ```
 
 ```{r, echo=FALSE}
@@ -31,7 +32,9 @@ remove_end_date <- function(df){
     return(df)
   }
 }
+```
 
+```{r, echo=FALSE}
 inflacao <- rbcb::get_series(c("ipca" = 433,
                            "ipca_alimentacao_e_bebidas" = 1635,
                            "ipca_habitacao" = 1636,
@@ -57,6 +60,11 @@ inflacao <- rbcb::get_series(c("ipca" = 433,
                            "indice_de_difusao" = 21379), start_date) %>%
   reshape::merge_recurse() %>%
   remove_end_date()
+inflacao <- inflacao %>%
+  clean_names()
+```
+
+```{r, echo=FALSE}
 
 ICBR <- get_series(c("ICBR" = 27574,
                      "ICBR_Agro" = 27575,
@@ -85,7 +93,9 @@ names(variacao) <- c("Tx.Var_ICBR", "Tx.Var_ICBR_Agro", "Tx.Var_ICBR_Metal", "Tx
 ICBR <- cbind(ICBR, variacao)
 
 inflacao <- dplyr::right_join(inflacao, ICBR, by = "date")
+```
 
+```{r, echo=FALSE}
 #Setor Publico
 
 setor_publico <- rbcb::get_series(c("Gov. Federal e BC" = 2053,
@@ -121,6 +131,11 @@ names(variacao) <- c("Tx.Var_Gov. Federal e BC", "Tx.Var_Gov. Federal", "Tx.Var_
 
 setor_publico <- cbind(setor_publico, variacao)
 
+setor_publico <- setor_publico %>%
+  clean_names()
+```
+
+```{r, echo=FALSE}
 #Setor Externo
 
 setor_externo <- get_series(c("Reservas Internacionais" = 3546,
@@ -164,7 +179,11 @@ names(variacao) <- c("Tx.Var Reservas Internacionais",
                      "Tx.Var Dolar")
 
 setor_externo <- cbind(setor_externo, variacao)
+setor_externo <- setor_externo %>% 
+  clean_names()
+```
 
+```{r, echo=FALSE}
 #Atividade
 
 atividade <- rbcb::get_series(c("Producao Industrial" = 21859,
@@ -238,14 +257,6 @@ atividade <- cbind(atividade, variacao)
 atividade <- atividade %>%
   clean_names()
 
-inflacao <- inflacao %>%
-  clean_names()
-
-setor_externo <- setor_externo %>% 
-  clean_names()
-
-setor_publico <- setor_publico %>%
-  clean_names()
 ```
 
 ## Inflacao
@@ -294,7 +305,9 @@ icbr <- inflacao %>% select(1, 25:28) %>%
   pivot_longer(-date,
                names_to = "Tipo",
                values_to = "Valores")
-
+################################################################################
+# ICBR
+################################################################################
 icbr %>% ggplot(aes(x = date, y = Valores, color = Tipo)) +
   geom_line() +
   scale_x_date(date_labels = "%b/%Y",
@@ -310,7 +323,9 @@ icbr %>% ggplot(aes(x = date, y = Valores, color = Tipo)) +
   theme(plot.title = element_text(size = 18,
                                   face = "bold"),
         legend.position = "bottom") 
-
+################################################################################
+# IPCA
+################################################################################
 inflacao_atual_12_pesos %>% filter(year(date) >= 2020) %>% ggplot(aes(x = month(date), y = Valores, fill = Tipo))+
   geom_col() +
   geom_line(aes(x = month(date), y = ipca), color = "dark blue") +
@@ -411,6 +426,9 @@ inf_temp %>% filter(year(date) >= 2018) %>% ggplot(aes(x = month(date), y = Valo
         legend.position = "bottom",
         legend.text = element_text(size = 8),
         strip.text.x = element_text(size = 5))
+################################################################################
+# Índice de Difusão
+################################################################################
 
 inflacao %>% 
   ggplot(aes(x = date, y = indice_de_difusao)) +
@@ -437,14 +455,39 @@ inflacao %>%
   theme(plot.title = element_text(size = 18,
                                   face = "bold"),
         legend.position = "bottom")
+################################################################################
+# IPCA e Bens Duráveis
+################################################################################
 
 ipca_duraveis <- inflacao %>% select(1, 2, 17:19) %>% pivot_longer(-date, names_to = "Tipo", values_to = "Valores")
 
-ipca_duraveis %>%
-  ggplot(aes(x = date, y = Valores, color = Tipo)) +
-  geom_line() +
+# Câmbio atrasado três meses
+cambio <- setor_externo %>%
+  select(date, dolar) %>%
+  mutate(dolar = lag(dolar, 3))
+
+ipca_duraveis_cambio <- ipca_duraveis %>%
+  left_join(cambio, by = "date")
+
+# Taxa de variação do Câmbio acumulada de 12 meses
+#cambio <- setor_externo %>%
+#  mutate(dolar_atrasado = lag(dolar,12)) %>%
+#  filter(!is.na(dolar_atrasado))%>%
+#  mutate(dolar_var = (dolar - lag(dolar, 12))/(lag(dolar,12)- 4.75))%>%
+#  rename(Valores = dolar_var) %>%
+#  mutate(Tipo = "dolar") %>%
+#  select(date, Tipo, Valores)
+#ipca_duraveis_cambio <- ipca_duraveis %>%
+#  rbind(cambio)
+
+
+ipca_duraveis_cambio %>%
+  ggplot(aes(x = date, y = Valores)) +
+  geom_line(aes(color = Tipo)) +
+  geom_line(aes(y = dolar), color = "black")+
   scale_x_date(date_labels = "%B/%Y",
                breaks = scales::pretty_breaks(5)) +
+  scale_y_continuous(sec.axis = sec_axis(rescale(~., to = c(4.75, 6), name = "Dólar atrasado Três meses")))+
   labs(x = "", y = "Valores", title = "IPCA e Bens Duráveis", subtitle = "Acumulado 12 meses (em %)",
        caption = "Econdata Analytics, fonte: BCB", colour = "") +
   scale_color_manual(values = c("ipca" = "dark blue",
@@ -454,7 +497,8 @@ ipca_duraveis %>%
                      labels = c("IPCA",
                                 "Não Duráveis",
                                 "Semi Duráveis",
-                                "Duráveis")) +
+                                "Duráveis",
+                                "Dólar")) +
   theme_minimal() +
   theme(plot.title = element_text(size = 18,
                                   face = "bold"),
