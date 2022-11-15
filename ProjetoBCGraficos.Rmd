@@ -185,7 +185,6 @@ setor_externo <- setor_externo %>%
 
 ```{r, echo=FALSE}
 #Atividade
-
 atividade <- rbcb::get_series(c("Producao Industrial" = 21859,
                                 "Producao de Oleo Bruto" = 1389,
                                 "Producao de LGN" = 1390,
@@ -205,13 +204,24 @@ atividade <- rbcb::get_series(c("Producao Industrial" = 21859,
                                 "Consumo de Alcool Hidratado" = 1399,
                                 "Consumo de Alcool Anidro" = 1400,
                                 "Consumo de Alcool Carburante" = 1401,
-                                "Volume de Vendas no Varejo" = 1455,
-                                "Taxa de Desocupacao" = 24369,
-                                "IVGR" = 21340,
-                                "IBCBR" = 24363), start_date) %>%
+                                "Indice de volume de vendas no varejo - Total" = 1455,
+                                "IBCBR" = 24363,
+                                "Renda media real habitual - Pessoas Ocupadas" = 24382,
+                                "Renda media real habitual - Com Carteira" = 24383,
+                                "Renda media real habitual - Sem Carteira" = 24384,
+                                "Renda media real habitual - Setor Privado" = 24385,
+                                "Renda media real habitual - Setor Publico" = 24386,
+                                "Renda media real habitual - Conta Propria" = 24387,
+                                "Renda media real habitual - Empregadores" = 24388,
+                                "Empregados no setor publico" = 24372,
+                                "Empregador por conta propria" = 24373,
+                                "Empregadores" = 24374,
+                                "Empregados no setor privado - Com carteira" = 24375,
+                                "Empregados no setor privado - Sem Carteira" = 24376,
+                                "Pessoas ocupadas" = 24379,
+                                "Taxa de desocupacao" = 24369), start_date) %>%
   reshape::merge_recurse() %>%
   remove_end_date()
-
 
 atividade_temp <- atividade[,-1] 
 
@@ -248,9 +258,20 @@ names(variacao) <- c("Tx.Var Producao Industrial",
                      "Tx.Var Consumo de Alcool Anidro",
                      "Tx.Var Consumo de Alcool Carburante",
                      "Tx.Var Volume de Vendas no Varejo",
-                     "Tx.Var da Taxa de Desocupacao",
-                     "Tx.Var IVG-R",
-                     "Tx.Var IBC-BR")
+                     "Tx.Var IBC-BR",
+                     "Tx.Var Renda média real habitual - Pessoas Ocupadas",
+                     "Tx.Var Renda média real habitual - Com Carteira",
+                     "Tx.Var Renda média real habitual - Sem Carteira",
+                     "Tx.Var Renda média real habitual - Setor Privado",
+                     "Tx.Var Renda média real habitual - Setor Público",
+                     "Tx.Var Renda média real habitual - Conta Própria",
+                     "Tx.Var Renda média real habitual - Empregadores",
+                     "Tx.Var Empregados no setor público",
+                     "Tx.Var Empregador por conta própria",
+                     "Tx.Var Empregadores",
+                     "Tx.Var Empregados no setor privado - Com carteira",
+                     "Tx.Var Empregados no setor privado - Sem Carteira",
+                     "Tx.Var da Taxa de Desocupacao")
 
 atividade <- cbind(atividade, variacao)
 
@@ -577,7 +598,7 @@ ipca_nucleo %>%
 ## Atividade
 
 ```{r, echo=FALSE, warning=FALSE}
-plot_titles = data.frame(titles = c("Produção Industrial",
+plot_titles = data.frame(titles = c("Indicadores da Produção Industrial - Geral",
                                     "Produção de Óleo Bruto",
                                     "Produção de LGN",
                                     "Produção Total de Derivados de Petróleo",
@@ -597,10 +618,8 @@ plot_titles = data.frame(titles = c("Produção Industrial",
                                     "Consumo de Álcool Anidro",
                                     "Consumo de Álcool Carburante",
                                     "Volume de Vendas no Varejo",
-                                    "Taxa de Desocupação",
-                                    "IVGR",
-                                    "IBCBR"),
-                         unidades = c("",
+                                    "IBC-BR"),
+                         unidades = c("Índice (2012 = 100)",
                                       "Barris/dia (mil)",
                                       "Barris/dia (mil)",
                                       "Barris/dia (mil)",
@@ -619,16 +638,14 @@ plot_titles = data.frame(titles = c("Produção Industrial",
                                       "Barris/dia (mil)",
                                       "Barris/dia (mil)",
                                       "Barris/dia (mil)",
-                                      "",
-                                      "%",
-                                      "",
-                                      ""))
-for (i in 1:23){
+                                      "Índice",
+                                      "Índice (2002 = 100)"))
+for (i in 2:22){
   print(
     ggplot(data = atividade)+
     geom_line(aes(x = date, y = atividade[,i]), colour = "#021b3d", size = 0.7)+
-    xlab("")+ylab(as.character(plot_titles[i,2]))+
-    ggtitle(as.character(plot_titles[i,1]))+
+    xlab("")+ylab(as.character(plot_titles[i-1,2]))+
+    ggtitle(as.character(plot_titles[i-1,1]))+
     theme_bw()+
       labs(caption = "Econdata Analytics, fonte: BCB") +
     theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
