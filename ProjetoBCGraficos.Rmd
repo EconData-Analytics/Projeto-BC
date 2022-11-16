@@ -206,7 +206,7 @@ atividade <- rbcb::get_series(c("Producao Industrial" = 21859,
                                 "Consumo de Alcool Carburante" = 1401,
                                 "Indice de volume de vendas no varejo - Total" = 1455,
                                 "IBCBR" = 24363,
-                                "Renda media real habitual - Pessoas Ocupadas" = 24382,
+                                "Renda media real habitual - Pessoas Ocupadas" = 24381,
                                 "Renda media real habitual - Com Carteira" = 24383,
                                 "Renda media real habitual - Sem Carteira" = 24384,
                                 "Renda media real habitual - Setor Privado" = 24385,
@@ -214,7 +214,7 @@ atividade <- rbcb::get_series(c("Producao Industrial" = 21859,
                                 "Renda media real habitual - Conta Propria" = 24387,
                                 "Renda media real habitual - Empregadores" = 24388,
                                 "Empregados no setor publico" = 24372,
-                                "Empregador por conta propria" = 24373,
+                                "Empregados por conta propria" = 24373,
                                 "Empregadores" = 24374,
                                 "Empregados no setor privado - Com carteira" = 24375,
                                 "Empregados no setor privado - Sem Carteira" = 24376,
@@ -480,15 +480,15 @@ inflacao %>%
 # IPCA e Bens Duráveis
 ################################################################################
 
-ipca_duraveis <- inflacao %>% select(1, 2, 17:19) %>% pivot_longer(-date, names_to = "Tipo", values_to = "Valores")
+#ipca_duraveis <- inflacao %>% select(1, 2, 17:19) %>% pivot_longer(-date, names_to = "Tipo", values_to = "Valores")
 
 # Câmbio atrasado três meses
-cambio <- setor_externo %>%
-  select(date, dolar) %>%
-  mutate(dolar = lag(dolar, 3))
+#cambio <- setor_externo %>%
+#  select(date, dolar) %>%
+#  mutate(dolar = lag(dolar, 3))
 
-ipca_duraveis_cambio <- ipca_duraveis %>%
-  left_join(cambio, by = "date")
+#ipca_duraveis_cambio <- ipca_duraveis %>%
+#  left_join(cambio, by = "date")
 
 # Taxa de variação do Câmbio acumulada de 12 meses
 #cambio <- setor_externo %>%
@@ -502,28 +502,28 @@ ipca_duraveis_cambio <- ipca_duraveis %>%
 #  rbind(cambio)
 
 
-ipca_duraveis_cambio %>%
-  ggplot(aes(x = date, y = Valores)) +
-  geom_line(aes(color = Tipo)) +
-  geom_line(aes(y = dolar), color = "black")+
-  scale_x_date(date_labels = "%B/%Y",
-               breaks = scales::pretty_breaks(5)) +
-  scale_y_continuous(sec.axis = sec_axis(rescale(~., to = c(4.75, 6), name = "Dólar atrasado Três meses")))+
-  labs(x = "", y = "Valores", title = "IPCA e Bens Duráveis", subtitle = "Acumulado 12 meses (em %)",
-       caption = "Econdata Analytics, fonte: BCB", colour = "") +
-  scale_color_manual(values = c("ipca" = "dark blue",
-                                "ipca_nao_duraveis" = "red",
-                                "ipca_semi_duraveis" = "green",
-                                "ipca_duraveis" = "orange"),
-                     labels = c("IPCA",
-                                "Não Duráveis",
-                                "Semi Duráveis",
-                                "Duráveis",
-                                "Dólar")) +
-  theme_minimal() +
-  theme(plot.title = element_text(size = 18,
-                                  face = "bold"),
-        legend.position = "bottom")
+#ipca_duraveis_cambio %>%
+#  ggplot(aes(x = date, y = Valores)) +
+#  geom_line(aes(color = Tipo)) +
+#  geom_line(aes(y = dolar), color = "black")+
+#  scale_x_date(date_labels = "%B/%Y",
+#               breaks = scales::pretty_breaks(5)) +
+#  scale_y_continuous(sec.axis = sec_axis(rescale(~., to = c(4.75, 6), name = "Dólar atrasado Três meses")))+
+#  labs(x = "", y = "Valores", title = "IPCA e Bens Duráveis", subtitle = "Acumulado 12 meses (em %)",
+#       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+#  scale_color_manual(values = c("ipca" = "dark blue",
+#                                "ipca_nao_duraveis" = "red",
+#                                "ipca_semi_duraveis" = "green",
+#                                "ipca_duraveis" = "orange"),
+#                     labels = c("IPCA",
+#                                "Não Duráveis",
+#                                "Semi Duráveis",
+#                                "Duráveis",
+#                                "Dólar")) +
+#  theme_minimal() +
+#  theme(plot.title = element_text(size = 18,
+#                                  face = "bold"),
+#        legend.position = "bottom")
   
 ipca_subgrupos <- inflacao %>% select(1,2, 20:22) %>% pivot_longer(-date, names_to = "Tipo", values_to = "Valores")
 
@@ -655,6 +655,86 @@ for (i in 2:22){
     scale_y_continuous(labels = scales::comma)
   )
 }
+```
+
+```{r, echo = FALSE, warning = FALSE}
+mercado_de_trabalho <- atividade %>%
+  select(date, renda_media_real_habitual_pessoas_ocupadas, renda_media_real_habitual_com_carteira, renda_media_real_habitual_sem_carteira, renda_media_real_habitual_setor_privado,
+         renda_media_real_habitual_setor_publico, renda_media_real_habitual_conta_propria, renda_media_real_habitual_empregadores, empregados_no_setor_publico, 
+         empregados_por_conta_propria, empregados_no_setor_privado_com_carteira, empregados_no_setor_privado_sem_carteira, empregadores, taxa_de_desocupacao)
+#################################
+# Rendas médias reais habituais
+#################################
+mercado_de_trabalho %>%
+  pivot_longer(c(renda_media_real_habitual_com_carteira, renda_media_real_habitual_sem_carteira,
+         renda_media_real_habitual_setor_publico, renda_media_real_habitual_conta_propria, renda_media_real_habitual_empregadores), names_to = "categoria", values_to = "renda_media_habitual")%>%
+  ggplot()+
+  geom_line(aes(x = date, y = renda_media_habitual, color = categoria))+
+  labs(title = "Rendimento mensal médio habitual real",
+       caption = "Econdata Analytics, fonte: BCB",
+       y = "Renda mensal real",
+       legend = "Categoria")+
+    theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
+          axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
+          panel.border = element_blank(), panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+  scale_x_date(limits = c(base::as.Date("01-03-2012", format ="%d-%m-%Y"),tail(mercado_de_trabalho$date, n=1)))+
+  scale_colour_manual(values = c(renda_media_real_habitual_empregadores = "green",
+                                 renda_media_real_habitual_setor_publico = "blue",
+                                 renda_media_real_habitual_com_carteira = "orange",
+                                 renda_media_real_habitual_conta_propria = "brown", 
+                                 renda_media_real_habitual_sem_carteira = "red"),
+                      labels = c("Empregados do setor privado com carteira",
+                                 "Empregados por conta própria",
+                                 "Empregadores",
+                                 "Empregados do setor privado sem carteira",
+                                 "Empregados do setor público"))
+#########################################################
+#  Empregados
+#########################################################
+a <- mercado_de_trabalho %>%
+  pivot_longer(c(empregados_no_setor_publico, empregados_por_conta_propria, empregados_no_setor_privado_com_carteira, empregados_no_setor_privado_sem_carteira,empregadores), names_to = "categoria", values_to = "numero")
+a %>%
+  #group_by(date)%>%
+  #mutate(numero = numero/sum(numero,na.rm = T))%>%
+  ggplot()+
+  geom_line(aes(x=date,y=numero,color=categoria))+
+  labs(title = "Decomposição da população ocupada",
+       caption = "Econdata Analytics, fonte: BCB",
+       y = "Número de Pessoas (mil)",
+       legend = "Categoria")+
+    theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
+          axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
+          panel.border = element_blank(), panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+  scale_x_date(limits = c(base::as.Date("01-03-2012", format ="%d-%m-%Y"),tail(mercado_de_trabalho$date, n=1)))+
+  scale_colour_manual(values = c(empregadores= "green",
+                                 empregados_no_setor_publico = "blue",
+                                 empregados_no_setor_privado_com_carteira = "orange",
+                                 empregados_por_conta_propria = "brown", 
+                                 empregados_no_setor_privado_sem_carteira = "red"),
+                      labels = c("Empregadores",
+                                 "Empregados do setor privado com carteira",
+                                 "Empregados do setor privado sem carteira",
+                                 "Empregados do setor público",
+                                 "Empregados por conta própria"))
+################################################################################
+# Taxa de descocupação
+################################################################################
+ggplot(mercado_de_trabalho)+
+    geom_line(aes(x = date, y = taxa_de_desocupacao), colour = "#021b3d", size = 0.7)+
+    xlab("")+ylab("Percentual da Força de Trabalho")+
+    ggtitle("Taxa de Desocupação")+
+    theme_bw()+
+      labs(caption = "Econdata Analytics, fonte: BCB") +
+    theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
+          axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
+          panel.border = element_blank(), panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    scale_y_continuous(labels = scales::comma)+
+  scale_x_date(limits = c(base::as.Date("01-03-2012", format ="%d-%m-%Y"),tail(mercado_de_trabalho$date, n=1)))
+
+
 ```
 
 ## Setor Publico
