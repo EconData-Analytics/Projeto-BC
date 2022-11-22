@@ -90,7 +90,8 @@ for(i in 1:n){
 
 names(variacao) <- c("Tx.Var_ICBR", "Tx.Var_ICBR_Agro", "Tx.Var_ICBR_Metal", "Tx.Var_ICBR_Energia")
 
-ICBR <- cbind(ICBR, variacao)
+ICBR <- cbind(ICBR, variacao) %>%
+  clean_names()
 
 inflacao <- dplyr::right_join(inflacao, ICBR, by = "date")
 ```
@@ -291,7 +292,9 @@ inf_temp <- inflacao %>% select(1:11)
 names(inf_temp) <- c("date", "IPCA","Aliment. e Beb.","Habitacao","Art. de Resid.","Vestuario","Transportes",
                      "Comunicacao","Saude","Desp. Pessoais","Educacao")
 inf_temp <- inf_temp %>%
-  pivot_longer(-date, names_to = "Tipo", values_to = "Valores") 
+  pivot_longer(-date, names_to = "Tipo", values_to = "Valores") %>%
+  transform(Tipo = factor(Tipo, levels = c("IPCA","Aliment. e Beb.","Art. de Resid.","Comunicacao","Desp. Pessoais",
+                                           "Educacao","Habitacao","Saude","Transportes","Vestuario")))
 
 inflacao <- inflacao %>%
   mutate(ipca_alimentos = ipca_livres - ((37.22/74.91) * ipca_servicos) - ((24.59/74.91) * ipca_industriais)) 
@@ -339,7 +342,8 @@ icbr %>% ggplot(aes(x = date, y = Valores, color = Tipo)) +
   scale_color_manual(values = c("icbr" = "dark blue",
                                 "icbr_agro" = "red",
                                 "icbr_energia" = "purple",
-                                "icbr_metal" = "green"), labels = c("ICBR", "IBR Agro", "ICBR Energia", "ICBR Metal")) +
+                                "icbr_metal" = "green"), 
+                     labels = c("ICBR", "ICBR Agro", "ICBR Energia", "ICBR Metal")) +
   theme_minimal()+
   theme(plot.title = element_text(size = 18,
                                   face = "bold"),
@@ -349,13 +353,13 @@ icbr %>% ggplot(aes(x = date, y = Valores, color = Tipo)) +
 ################################################################################
 inflacao_atual_12_pesos %>% filter(year(date) >= 2020) %>% ggplot(aes(x = month(date), y = Valores, fill = Tipo))+
   geom_col() +
-  geom_line(aes(x = month(date), y = ipca), color = "dark blue") +
+  geom_line(aes(x = month(date), y = ipca), color = "dark blue", size = 0.75) +
   facet_grid(rows = vars(year(date))) +
   scale_y_continuous(breaks = scales::pretty_breaks(4)) +
   labs(x = "Meses", y = "Valores", title = "IPCA", subtitle = "Desagregações IPCA acumulado 12 meses",
        caption = "Econdata Analytics, fonte: BCB", fill = "") +
   scale_fill_manual(values = c("ipca_alimentacao_e_bebidas" = "green",
-                               "ipca_artigos_de_resid_ncia" = "red",
+                               "ipca_artigos_de_residencia" = "red",
                                "ipca_comunicacao" = "purple",
                                "ipca_despesas_pessoais" = "#572C00",
                                "ipca_educacao" = "#00FFFF",
@@ -391,7 +395,7 @@ inflacao_atual_12 %>% ggplot(aes(x = date, y = Valores, color = Tipo))+
        caption = "Econdata Analytics, fonte: BCB", colour = "") +
   scale_color_manual(values = c("ipca" = "dark blue",
                                 "ipca_alimentacao_e_bebidas" = "green",
-                               "ipca_artigos_de_resid_ncia" = "red",
+                               "ipca_artigos_de_residencia" = "red",
                                "ipca_comunicacao" = "purple",
                                "ipca_despesas_pessoais" = "#572C00",
                                "ipca_educacao" = "#00FFFF",
@@ -602,7 +606,7 @@ plot_titles = data.frame(titles = c("Indicadores da Produção Industrial - Gera
                                     "Produção de Óleo Bruto",
                                     "Produção de LGN",
                                     "Produção Total de Derivados de Petróleo",
-                                    "Produção de Gas Natural",
+                                    "Produção de Gás Natural",
                                     "Consumo de Energia Elétrica - Comercial",
                                     "Consumo de Energia Elétrica - Residencial",
                                     "Consumo de Energia Elétrica - Industrial",
@@ -610,9 +614,9 @@ plot_titles = data.frame(titles = c("Indicadores da Produção Industrial - Gera
                                     "Consumo de Energia Elétrica - Total",
                                     "Consumo de Gasolina",
                                     "Consumo de GLP",
-                                    "Consumo de Oleo Combustivel",
-                                    "Consumo de Oleo Diesel",
-                                    "Consumo de Outros Derivados de Petroleo",
+                                    "Consumo de Óleo Combustível",
+                                    "Consumo de Óleo Diesel",
+                                    "Consumo de Outros Derivados de Petróleo",
                                     "Consumo de Derivados de Petróleo - Total",
                                     "Consumo de Álcool Hidratado",
                                     "Consumo de Álcool Anidro",
@@ -642,16 +646,16 @@ plot_titles = data.frame(titles = c("Indicadores da Produção Industrial - Gera
                                       "Índice (2002 = 100)"))
 for (i in 2:22){
   print(
-    ggplot(data = atividade)+
-    geom_line(aes(x = date, y = atividade[,i]), colour = "#021b3d", size = 0.7)+
-    xlab("")+ylab(as.character(plot_titles[i-1,2]))+
-    ggtitle(as.character(plot_titles[i-1,1]))+
-    theme_bw()+
-      labs(caption = "Econdata Analytics, fonte: BCB") +
-    theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
-          axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
-          panel.border = element_blank(), panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    ggplot(data = atividade) +
+    geom_line(aes(x = date, y = atividade[,i]), colour = "#021b3d", size = 0.7) +
+    xlab("") + 
+    ylab(as.character(plot_titles[i-1,2])) +
+    ggtitle(as.character(plot_titles[i-1,1]))  +
+    theme_minimal() +   
+    labs(caption = "Econdata Analytics, fonte: BCB") +
+    theme(plot.title = element_text(size = 18, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8)) +
     scale_y_continuous(labels = scales::comma)
   )
 }
@@ -675,6 +679,7 @@ mercado_de_trabalho %>%
        y = "Renda mensal real",
        legend = "Categoria")+
     theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
+          legend.title = element_text(family='sans',colour='#002060',size=13,face='bold'),
           axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
           panel.border = element_blank(), panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
@@ -684,11 +689,11 @@ mercado_de_trabalho %>%
                                  renda_media_real_habitual_com_carteira = "orange",
                                  renda_media_real_habitual_conta_propria = "brown", 
                                  renda_media_real_habitual_sem_carteira = "red"),
-                      labels = c("Empregados do setor privado com carteira",
-                                 "Empregados por conta própria",
-                                 "Empregadores",
-                                 "Empregados do setor privado sem carteira",
-                                 "Empregados do setor público"))
+                      labels = c("Empregados",
+                                 "Empregados do setor público",
+                                 "Empregados do setor privado com carteira",
+                                 "Empregados do setor por conta própria",
+                                 "Empregados do setor privado sem carteira"))
 #########################################################
 #  Empregados
 #########################################################
@@ -704,6 +709,7 @@ a %>%
        y = "Número de Pessoas (mil)",
        legend = "Categoria")+
     theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
+          legend.title = element_text(family='sans',colour='#002060',size=13,face='bold'),
           axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
           panel.border = element_blank(), panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
@@ -714,10 +720,10 @@ a %>%
                                  empregados_por_conta_propria = "brown", 
                                  empregados_no_setor_privado_sem_carteira = "red"),
                       labels = c("Empregadores",
-                                 "Empregados do setor privado com carteira",
-                                 "Empregados do setor privado sem carteira",
                                  "Empregados do setor público",
-                                 "Empregados por conta própria"))
+                                 "Empregados do setor privado com carteira",
+                                 "Empregados por conta própria",
+                                 "Empregados do setor privado sem carteira"))
 ################################################################################
 # Taxa de descocupação
 ################################################################################
@@ -725,13 +731,12 @@ ggplot(mercado_de_trabalho)+
     geom_line(aes(x = date, y = taxa_de_desocupacao), colour = "#021b3d", size = 0.7)+
     xlab("")+ylab("Percentual da Força de Trabalho")+
     ggtitle("Taxa de Desocupação")+
-    theme_bw()+
+    theme_minimal()+
       labs(caption = "Econdata Analytics, fonte: BCB") +
-    theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
-          axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
-          panel.border = element_blank(), panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
-    scale_y_continuous(labels = scales::comma)+
+    theme(plot.title = element_text(size = 18, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8)) +
+    scale_y_continuous(labels = scales::comma) +
   scale_x_date(limits = c(base::as.Date("01-03-2012", format ="%d-%m-%Y"),tail(mercado_de_trabalho$date, n=1)))
 
 
@@ -751,11 +756,14 @@ setor_publico %>%
                 xmax = as.Date('01/10/2021', format = '%d/%m/%Y'),
                 ymin = -Inf,
                 ymax = Inf), alpha = 0.005)+
-  theme_classic()+
+  theme_minimal()+
   labs(x = '',
        y = 'Reais',
        caption = 'Econdata Analytics, Fonte: Banco Central e CODACE',
-       title = 'Dívida Líquida do Governo Federal e Recessões Brasileiras')
+       title = 'Dívida Líquida do Governo Federal e Recessões Brasileiras') +
+    theme(plot.title = element_text(size = 13, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8))
 
 setor_publico %>%
   ggplot()+
@@ -768,11 +776,14 @@ setor_publico %>%
                 xmax = as.Date('01/10/2021', format = '%d/%m/%Y'),
                 ymin = -Inf,
                 ymax = Inf), alpha = 0.005)+
-  theme_classic()+
+  theme_minimal()+
   labs(x = '',
        y = 'Reais',
        caption = 'Econdata Analytics, Fonte: Banco Central e CODACE',
-       title = 'Dívida Líquida do Banco Central e Recessões Brasileiras')
+       title = 'Dívida Líquida do Banco Central e Recessões Brasileiras') +
+    theme(plot.title = element_text(size = 13, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8))
 
 setor_publico %>%
   ggplot()+
@@ -785,11 +796,14 @@ setor_publico %>%
                 xmax = as.Date('01/10/2021', format = '%d/%m/%Y'),
                 ymin = -Inf,
                 ymax = Inf), alpha = 0.005)+
-  theme_classic()+
+  theme_minimal()+
   labs(x = '',
        y = 'Reais',
        caption = 'Econdata Analytics, Fonte: Banco Central e CODACE',
-       title = 'Dívida Líquida de Estados e Municípios e Recessões Brasileiras')
+       title = 'Dívida Líquida de Estados e Municípios e Recessões Brasileiras') +
+    theme(plot.title = element_text(size = 13, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8))
 
 setor_publico %>%
   ggplot()+
@@ -802,11 +816,14 @@ setor_publico %>%
                 xmax = as.Date('01/10/2021', format = '%d/%m/%Y'),
                 ymin = -Inf,
                 ymax = Inf), alpha = 0.005)+
-  theme_classic()+
+  theme_minimal()+
   labs(x = '',
        y = 'Reais',
        caption = 'Econdata Analytics, Fonte: Banco Central e CODACE',
-       title = 'Dívida Líquida de Estatais e Recessões Brasileiras')
+       title = 'Dívida Líquida de Estatais e Recessões Brasileiras') +
+    theme(plot.title = element_text(size = 13, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8))
 
 ```
 
