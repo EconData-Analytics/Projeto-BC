@@ -861,15 +861,194 @@ ipca_duraveis
 
 ## Gráficos {.tabset}
 
-```{r, echo=F, warning=FALSE}
-for (i in 1:21) {
-  
-  print(graphs_atividade[[i]])
+### Indicadores da Produção Industrial - Geral {.tabset}
 
-}
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[1]]
+
+```
+
+### Produção de Óleo Bruto {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[2]]
+
+```
+
+### Produção de LGN {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[3]]
+
+```
+
+### Produção Total de Derivados de Petróleo {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[4]]
+
+```
+
+### Produção de Gás Natural {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[5]]
+
+```
+
+### Consumo de Energia Elétrica - Comercial {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[6]]
+
+```
+
+### Consumo de Energia Elétrica - Residencial {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[7]]
+
+```
+
+### Consumo de Energia Elétrica - Industrial {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[8]]
+
+```
+
+### Consumo de Energia Elétrica - Outros {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[9]]
+
+```
+
+### Consumo de Energia Elétrica - Total {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[10]]
+
+```
+
+### Consumo de Gasolina {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[11]]
+
+```
+
+### Consumo de GLP {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[12]]
+
+```
+
+### Consumo de Óleo Combustível {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[13]]
+
+```
+
+### Consumo de Óleo Diesel {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[14]]
+
+```
+
+### Consumo de Outros Derivados de Petróleo {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[15]]
+
+```
+
+### Consumo de Derivados de Petróleo - Total {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[16]]
+
+```
+
+### Consumo de Álcool Hidratado {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[17]]
+
+```
+
+### Consumo de Álcool Anidro {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[18]]
+
+```
+
+### Consumo de Álcool Carburante {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[19]]
+
+```
+
+### Volume de Vendas no Varejo {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[20]]
+
+```
+
+### IBC-BR {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[21]]
+
+```
+
+### Rendimento Mensal Médio {.tabset}
+
+```{r, echo=F, warning=FALSE}
 
 graph_mercado_de_trabalho
+
+```
+
+### Decomposição da População Ocupada {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
 graph_empregados
+
+```
+
+### Taxa de Desocupação {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
 graph_desocupacao
 
 ```
