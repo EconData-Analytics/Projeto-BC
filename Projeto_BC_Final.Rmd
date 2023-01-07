@@ -1,0 +1,1127 @@
+---
+title: "Econdata Analytics - Projeto Banco Central"
+author: "Arthur Vasconcellos, André Alvarenga, Rafael Gabbay, Victor Epelbaum, João Guilherme Lobo, Pedro Henrique Teixeira, Hugo Erthal e Arthur Coelho"
+date: '22/11/2022'
+output: 
+  html_document:
+    theme: "bootstrap"
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(janitor)
+library(rbcb)
+library(lubridate)
+library(zoo)
+library(RcppRoll)
+```
+
+```{r, include=FALSE}
+start_date = "2009-12-01"
+
+remove_end_date <- function(df){
+  if("end_date" %in% colnames(df)){
+    df <- df %>%
+      select(-end_date)
+    return(df)
+  }else{
+    return(df)
+  }
+}
+
+##### IPCA ####
+
+inflacao <- rbcb::get_series(c("ipca" = 433,
+                           "ipca_alimentacao_e_bebidas" = 1635,
+                           "ipca_habitacao" = 1636,
+                           "ipca_artigos_de_residencia" = 1637,
+                           "ipca_vestuario" = 1638,
+                           "ipca_transportes" = 1639,
+                           "ipca_comunicacao" = 1640,
+                           "ipca_saude_e_cuidados_pessoais" = 1641,
+                           "ipca_despesas_pessoais" = 1642,
+                           "ipca_educacao" = 1643,
+                           "ipca_comercializaveis" = 4447,
+                           "ipca_nao_comercializaveis" = 4448,
+                           "ipca_monitorados" = 4449,
+                           "ipca_nucleo_medias_aparadas(suavizado)" = 4466,
+                           "ipca_nucleo_medias_aparadas(sem_suavizado)" = 11426,
+                           "ipca_nao_duraveis" = 10841,
+                           "ipca_semi_duraveis" = 10842,
+                           "ipca_duraveis" = 10843,
+                           "ipca_servicos" = 10844,
+                           "ipca_livres" = 11428,
+                           "ipca_industriais" = 27863,
+                           "ipca_alimentacao_no_domicilio" = 27864,
+                           "indice_de_difusao" = 21379), start_date) %>%
+  reshape::merge_recurse() %>%
+  remove_end_date()
+
+inflacao <- inflacao %>%
+  clean_names()
+
+##### ICBR ####
+
+ICBR <- get_series(c("ICBR" = 27574,
+                     "ICBR_Agro" = 27575,
+                     "ICBR_Metal" = 27576,
+                     "ICBR_Energia" = 27577), start_date) %>%
+  reshape::merge_recurse() %>%
+  remove_end_date
+
+ICBR_temp <- ICBR[,-1] 
+
+n <- nrow(ICBR_temp) - 1 
+
+m <- ncol(ICBR_temp)
+
+variacao = data.frame()
+
+for(i in 1:n){
+  for(j in 1:m){
+    taxa_variacao_ICBR <- (ICBR_temp[i+1,j]/ICBR_temp[i,j])-1
+    variacao[i + 1, j] <- round(100 *taxa_variacao_ICBR, digits = 2)
+  }
+}
+
+names(variacao) <- c("Tx.Var_ICBR", "Tx.Var_ICBR_Agro", "Tx.Var_ICBR_Metal", "Tx.Var_ICBR_Energia")
+
+ICBR <- cbind(ICBR, variacao) %>%
+  clean_names()
+
+inflacao <- dplyr::right_join(inflacao, ICBR, by = "date")
+##### Setor Público ####
+
+setor_publico <- rbcb::get_series(c("Gov. Federal e BC" = 2053,
+                                    "Gov. Federal" = 2054,
+                                    "BC" = 2055,
+                                    "Estaduais e Municipais" = 2056,
+                                    "Estaduais" = 2057,
+                                    "Municipais" = 2058,
+                                    "Estatais" = 2059,
+                                    "Estatais Federais" = 2060,
+                                    "Estatais Estaduais" = 2061,
+                                    "Estatais Municipais" = 2062), start_date) %>%
+  reshape::merge_recurse() %>%
+  remove_end_date()
+
+
+setor_publico_temp <- setor_publico[,-1] 
+
+n <- nrow(setor_publico_temp) - 1
+
+m <- ncol(setor_publico_temp)
+
+variacao = data.frame()
+
+for(i in 1:n){
+  for(j in 1:m){
+    taxa_variacao_setor_publico <- (setor_publico_temp[i+1,j]/setor_publico_temp[i,j])-1
+    variacao[i + 1, j] <- round(100 *taxa_variacao_setor_publico, digits = 2)
+  }
+}
+
+names(variacao) <- c("Tx.Var_Gov. Federal e BC", "Tx.Var_Gov. Federal", "Tx.Var_BC", "Tx.Var_Estaduais e Municipais","Estaduais","Municipais","Estatais","Estatais Federais","Estatais Estaduais","Estatais Municipais")
+
+setor_publico <- cbind(setor_publico, variacao)
+
+setor_publico <- setor_publico %>%
+  clean_names()
+
+##### Setor Externo ####
+
+setor_externo <- get_series(c("Reservas Internacionais" = 3546,
+                              "Transacoes Correntes_Saldo" = 22701,
+                              "Transacoes Correntes_Receita" = 22702,
+                              "Transacoes Correntes_Despesa" = 22703,
+                              "Conta Capital_Saldo" = 22851,
+                              "Conta Capital_Receita" = 22852,
+                              "Conta Capital_Despesa" = 22853,
+                              "Conta Financeira" = 22863,
+                              "Investimento Direto" = 23080,
+                              "Dolar" = 3696), start_date) %>%
+  reshape::merge_recurse()%>%
+  remove_end_date()
+
+
+setor_externo_temp <- setor_externo[,-1] 
+
+n <- nrow(setor_externo_temp) - 1
+
+m <- ncol(setor_externo_temp)
+
+variacao = data.frame()
+
+for(i in 1:n){
+  for(j in 1:m){
+    taxa_variacao_setor_externo <- (setor_externo_temp[i+1,j]/setor_externo_temp[i,j])-1
+    variacao[i + 1, j] <- round(100 *taxa_variacao_setor_externo, digits = 2)
+  }
+}
+
+names(variacao) <- c("Tx.Var Reservas Internacionais", 
+                     "Tx.Var Transacoes Correntes_Saldo", 
+                     "Tx.Var Transacoes Correntes_Receita",
+                     "Tx.Var Transacoes Correntes_Despesa",
+                     "Tx.Var Conta Capital_Saldo",
+                     "Tx.Var Conta Capital_Receita",
+                     "Tx.Var Conta Capital_Despesa",
+                     "Tx.Var Conta Financeira",
+                     "Tx.Var Investimento Direto",
+                     "Tx.Var Dolar")
+
+setor_externo <- cbind(setor_externo, variacao)
+setor_externo <- setor_externo %>% 
+  clean_names()
+
+##### Atividade ####
+
+atividade <- rbcb::get_series(c("Producao Industrial" = 21859,
+                                "Producao de Oleo Bruto" = 1389,
+                                "Producao de LGN" = 1390,
+                                "Producao Total de Derivados de Petroleo" = 1391,
+                                "Producao de Gas Natural" = 1392,
+                                "Consumo de Energia Eletrica - Comercial" = 1402,
+                                "Consumo de Energia Eletrica - Residencial" = 1403,
+                                "Consumo de Energia Eletrica - Industrial" = 1404,
+                                "Consumo de Energia Eletrica - Outros" = 1405,
+                                "Consumo de Energia Eletrica - Total" = 1406,
+                                "Consumo de Gasolina" = 1393,
+                                "Consumo de GLP" = 1394,
+                                "Consumo de Oleo Combustivel" = 1395,
+                                "Consumo de Oleo Diesel" = 1396,
+                                "Consumo de Outros Derivados de Petroleo" = 1397,
+                                "Consumo de Derivados de Petroleo - Total" = 1398,
+                                "Consumo de Alcool Hidratado" = 1399,
+                                "Consumo de Alcool Anidro" = 1400,
+                                "Consumo de Alcool Carburante" = 1401,
+                                "Indice de volume de vendas no varejo - Total" = 1455,
+                                "IBCBR" = 24363,
+                                "Renda media real habitual - Pessoas Ocupadas" = 24381,
+                                "Renda media real habitual - Com Carteira" = 24383,
+                                "Renda media real habitual - Sem Carteira" = 24384,
+                                "Renda media real habitual - Setor Privado" = 24385,
+                                "Renda media real habitual - Setor Publico" = 24386,
+                                "Renda media real habitual - Conta Propria" = 24387,
+                                "Renda media real habitual - Empregadores" = 24388,
+                                "Empregados no setor publico" = 24372,
+                                "Empregados por conta propria" = 24373,
+                                "Empregadores" = 24374,
+                                "Empregados no setor privado - Com carteira" = 24375,
+                                "Empregados no setor privado - Sem Carteira" = 24376,
+                                "Pessoas ocupadas" = 24379,
+                                "Taxa de desocupacao" = 24369), start_date) %>%
+  reshape::merge_recurse() %>%
+  remove_end_date()
+
+atividade_temp <- atividade[,-1] 
+
+n <- nrow(atividade_temp) - 1
+
+m <- ncol(atividade_temp)
+
+variacao = data.frame()
+
+for(i in 1:n){
+  for(j in 1:m){
+    taxa_variacao_atividade <- (atividade_temp[i+1,j]/atividade_temp[i,j])-1
+    variacao[i + 1, j] <- round(100 *taxa_variacao_atividade, digits = 2)
+  }
+}
+
+names(variacao) <- c("Tx.Var Producao Industrial", 
+                     "Tx.Var Producao de Oleo Bruto", 
+                     "Tx.Var Producao de LGN",
+                     "Tx.Var Producao Total de Derivados de Petroleo",
+                     "Tx.Var Producao de Gas Natural",
+                     "Tx.Var Consumo de Energia Eletrica - Comercial",
+                     "Tx.Var Consumo de Energia Eletrica - Residencial",
+                     "Tx.Var Consumo de Energia Eletrica - Industrial",
+                     "Tx.Var Consumo de Energia Eletrica - Outros",
+                     "Tx.Var Consumo de Energia Eletrica - Total",
+                     "Tx.Var Consumo de Gasolina",
+                     "Tx.Var Consumo de GLP",
+                     "Tx.Var Consumo de Oleo Combustivel",
+                     "Tx.Var Consumo de Oleo Diesel",
+                     "Tx.Var Consumo de Outros Derivados de Petroleo",
+                     "Tx.Var Consumo de Derivados de Petroleo - Total",
+                     "Tx.Var Consumo de Alcool Hidratado",
+                     "Tx.Var Consumo de Alcool Anidro",
+                     "Tx.Var Consumo de Alcool Carburante",
+                     "Tx.Var Volume de Vendas no Varejo",
+                     "Tx.Var IBC-BR",
+                     "Tx.Var Renda média real habitual - Pessoas Ocupadas",
+                     "Tx.Var Renda média real habitual - Com Carteira",
+                     "Tx.Var Renda média real habitual - Sem Carteira",
+                     "Tx.Var Renda média real habitual - Setor Privado",
+                     "Tx.Var Renda média real habitual - Setor Público",
+                     "Tx.Var Renda média real habitual - Conta Própria",
+                     "Tx.Var Renda média real habitual - Empregadores",
+                     "Tx.Var Empregados no setor público",
+                     "Tx.Var Empregador por conta própria",
+                     "Tx.Var Empregadores",
+                     "Tx.Var Empregados no setor privado - Com carteira",
+                     "Tx.Var Empregados no setor privado - Sem Carteira",
+                     "Tx.Var da Taxa de Desocupacao")
+
+atividade <- cbind(atividade, variacao)
+
+atividade <- atividade %>%
+  clean_names()
+```
+
+```{r, include=FALSE}
+#Gráficos
+
+inf_temp <- inflacao %>% select(1:11)
+names(inf_temp) <- c("date", "IPCA","Aliment. e Beb.","Habitacao","Art. de Resid.","Vestuario","Transportes",
+                     "Comunicacao","Saude","Desp. Pessoais","Educacao")
+
+inf_temp <- inf_temp %>%
+  pivot_longer(-date, names_to = "Tipo", values_to = "Valores") %>%
+  transform(Tipo = factor(Tipo, levels = c("IPCA","Aliment. e Beb.","Art. de Resid.","Comunicacao","Desp. Pessoais",
+                                           "Educacao","Habitacao","Saude","Transportes","Vestuario")))
+
+inflacao <- inflacao %>%
+  mutate(ipca_alimentos = ipca_livres - ((37.22/74.91) * ipca_servicos) - ((24.59/74.91) * ipca_industriais)) 
+
+vec <- c(2:23, 33)
+
+for(i in 1:length(vec)){
+  inflacao[,vec[i]] <- roll_prodr(1 + (inflacao[,vec[i]]/100), n = 12L, fill = NA) - 1
+  inflacao[,vec[i]] <- round(100 * inflacao[,vec[i]], 2)
+}
+
+#Pesos calculados conforme POF 2017-2018 disponibilizado pelo BCB no seguinte link: #https://www.bcb.gov.br/content/ri/relatorioinflacao/201912/ri201912b7p.pdf
+
+inflacao_atual_12_pesos <- inflacao %>%
+  select(1:11) %>%
+  mutate(ipca_alimentacao_e_bebidas = 0.1899 * ipca_alimentacao_e_bebidas) %>%
+  mutate(ipca_habitacao = 0.1516 * ipca_habitacao) %>%
+  mutate(ipca_artigos_de_residencia = 0.0402 * ipca_artigos_de_residencia) %>%
+  mutate(ipca_vestuario = 0.0480 * ipca_vestuario) %>%
+  mutate(ipca_transportes = 0.2084 * ipca_transportes) %>%
+  mutate(ipca_comunicacao = 0.0619 * ipca_comunicacao) %>%
+  mutate(ipca_saude_e_cuidados_pessoais = 0.1346 * ipca_saude_e_cuidados_pessoais) %>%
+  mutate(ipca_despesas_pessoais = 0.106 * ipca_despesas_pessoais) %>%
+  mutate(ipca_educacao = 0.0595 * ipca_educacao) %>%
+  pivot_longer(-c(date, ipca), names_to = "Tipo", values_to = "Valores")
+
+inflacao_atual_12 <- inflacao %>%
+  select(1:11) %>%
+  pivot_longer(-c(date, ipca), names_to = "Tipo", values_to = "Valores")
+
+icbr <- inflacao %>% select(1, 25:28) %>%
+  pivot_longer(-date,
+               names_to = "Tipo",
+               values_to = "Valores")
+################################################################################
+# ICBR
+################################################################################
+graph_icbr <- icbr %>% ggplot(aes(x = date, y = Valores, color = Tipo)) +
+  geom_line() +
+  scale_x_date(date_labels = "%b/%Y",
+               breaks = scales::pretty_breaks(10))  +
+  scale_y_continuous(breaks = scales::pretty_breaks(5)) +
+  labs(x = "", y = "Valores", title = "ICBR", subtitle = "Desagregações ICBR",
+                       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+  scale_color_manual(values = c("icbr" = "dark blue",
+                                "icbr_agro" = "red",
+                                "icbr_energia" = "purple",
+                                "icbr_metal" = "green"), 
+                     labels = c("ICBR", "ICBR Agro", "ICBR Energia", "ICBR Metal")) +
+  theme_minimal()+
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom") 
+################################################################################
+# IPCA
+################################################################################
+
+graph_ipca1 <- inflacao_atual_12_pesos %>% filter(year(date) >= 2020) %>% ggplot(aes(x = month(date), y = Valores, fill = Tipo))+
+  geom_col() +
+  geom_line(aes(x = month(date), y = ipca), color = "dark blue", size = 0.75) +
+  facet_grid(rows = vars(year(date))) +
+  scale_y_continuous(breaks = scales::pretty_breaks(4)) +
+  labs(x = "Meses", y = "Valores", title = "IPCA", subtitle = "Desagregações IPCA acumulado 12 meses",
+       caption = "Econdata Analytics, fonte: BCB", fill = "") +
+  scale_fill_manual(values = c("ipca_alimentacao_e_bebidas" = "green",
+                               "ipca_artigos_de_residencia" = "red",
+                               "ipca_comunicacao" = "purple",
+                               "ipca_despesas_pessoais" = "#572C00",
+                               "ipca_educacao" = "#00FFFF",
+                               "ipca_habitacao" = "blue",
+                               "ipca_saude_e_cuidados_pessoais" = "orange",
+                               "ipca_transportes" = "#017901",
+                               "ipca_vestuario" = "magenta"), labels = c("Alimentacao e Bebidas",
+                                                                         "Art. de Residencia",
+                                                                         "Comunicacao", 
+                                                                         "Desp. Pessoais",
+                                                                         "Educacao",
+                                                                         "Habitacao",
+                                                                         "Saude",
+                                                                         "Transportes",
+                                                                         "Vestuario")) +
+  scale_x_continuous(
+    breaks = seq_along(month.name), 
+    labels = month.name
+  ) +
+  theme_minimal() + 
+  geom_hline(yintercept=0, linetype="dashed", color = "black") +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom",
+        axis.text.x.bottom = element_text(size = 6.5))
+
+graph_ipca2 <- inflacao_atual_12 %>% ggplot(aes(x = date, y = Valores, color = Tipo))+
+  geom_line()  +
+  scale_y_continuous(breaks = scales::pretty_breaks(3))  +
+  scale_x_date(date_labels = "%b/%Y",
+               breaks = scales::pretty_breaks(10)) +
+  labs(x = "", y = "Valores", title = "IPCA", subtitle = "Desagregações IPCA acumulado 12 meses (em %)",
+       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+  scale_color_manual(values = c("ipca" = "dark blue",
+                                "ipca_alimentacao_e_bebidas" = "green",
+                               "ipca_artigos_de_residencia" = "red",
+                               "ipca_comunicacao" = "purple",
+                               "ipca_despesas_pessoais" = "#572C00",
+                               "ipca_educacao" = "#00FFFF",
+                               "ipca_habitacao" = "blue",
+                               "ipca_saude_e_cuidados_pessoais" = "orange",
+                               "ipca_transportes" = "#017901",
+                               "ipca_vestuario" = "magenta"),labels = c("IPCA", 
+                                                                         "Alimentacao e Bebidas",
+                                                                         "Art. de Residencia",
+                                                                         "Comunicacao", 
+                                                                         "Desp. Pessoais",
+                                                                         "Educacao",
+                                                                         "Habitacao",
+                                                                         "Saude",
+                                                                         "Transportes",
+                                                                         "Vestuario")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8))
+
+graph_ipca3 <- inf_temp %>% filter(year(date) >= 2018) %>% ggplot(aes(x = month(date), y = Valores, color = Tipo))+
+  geom_line() +
+  facet_grid(rows = vars(year(date)),
+             cols = vars(Tipo)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(3)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(4)) +
+  labs(x = "Meses", y = "Valores", title = "IPCA", subtitle = "Desagregações IPCA (variações mensais)",
+       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+  scale_color_manual(values = c("IPCA" = "dark blue",
+                                "Aliment. e Beb." = "green",
+                                "Art. de Resid." = "red",
+                                "Comunicacao" = "purple",
+                                "Desp. Pessoais" = "#572C00",
+                                "Educacao" = "#00FFFF",
+                                "Habitacao" = "blue",
+                                "Saude" = "orange",
+                                "Transportes" = "#017901",
+                                "Vestuario" = "magenta"),labels = c("IPCA", 
+                                                                         "Alimentacao e Bebidas",
+                                                                         "Artigos de Residencia",
+                                                                         "Comunicacao", 
+                                                                         "Despesas Pessoais",
+                                                                         "Educacao",
+                                                                         "Habitacao",
+                                                                         "Saude",
+                                                                         "Transportes",
+                                                                         "Vestuario")) +
+  theme_minimal()  +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8),
+        strip.text.x = element_text(size = 5))
+
+################################################################################
+# Índice de Difusão
+################################################################################
+
+indice_de_difusao <- inflacao %>% 
+  ggplot(aes(x = date, y = indice_de_difusao)) +
+  geom_col(fill = "blue", color = "black") +
+  scale_x_date(date_labels = "%B/%Y",
+               breaks = scales::pretty_breaks(5)) +
+  labs(x = "", y = "Índice de Difusão", title = "Índice de Difusão da Inflação (em %)",
+       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+  coord_cartesian(ylim=c(40, 80)) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom")
+
+################################################################################
+# Subgrupos
+################################################################################
+ipca_subgrupos <- inflacao %>% 
+  select(1,2, 20:22) %>% 
+  pivot_longer(-date, names_to = "Tipo", values_to = "Valores") %>% 
+  ggplot(aes(x = date, y = Valores, color = Tipo)) +
+  geom_line() +
+  scale_x_date(date_labels = "%B/%Y",
+               breaks = scales::pretty_breaks(5)) +
+  labs(x = "", y = "Valores", title = "IPCA e SubGrupos", subtitle = "Acumulado 12 meses (em %)",
+       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+  scale_color_manual(values = c("ipca" = "dark blue",
+                                "ipca_industriais" = "red",
+                                "ipca_livres" = "green",
+                                "ipca_servicos" = "orange"),
+                     labels = c("IPCA",
+                                "Industriais",
+                                "Livres",
+                                "Serviços")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom")
+
+################################################################################
+# Comercializaveis
+################################################################################
+
+ipca_comercializaveis <- inflacao %>% 
+  select(1:2, 12:13) %>%
+  pivot_longer(-date, names_to = "Tipo", values_to = "Valores") %>%
+  ggplot(aes(x = date, y = Valores, color = Tipo)) +
+  geom_line() +
+  scale_x_date(date_labels = "%Y",
+               breaks = scales::pretty_breaks(3)) +
+  labs(x = "", y = "Valores", title = "IPCA Comercializáveis", subtitle = "Acumulado 12 meses (em %)",
+       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold")) +
+  scale_color_manual(values = c("ipca" = "dark blue",
+                                "ipca_comercializaveis" = "red",
+                                "ipca_nao_comercializaveis" = "green"),
+                     labels = c("IPCA",
+                                "Comercializáveis",
+                                "Não Comercializáveis")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom")
+
+ipca_nucleo <- inflacao %>% select(1, 15, 16) %>%
+  pivot_longer(-date, names_to = "Tipo", values_to = "Valores") %>% 
+  ggplot(aes(x = date, y = Valores, color = Tipo)) +
+  geom_line() +
+  scale_x_date(date_labels = "%B/%Y",
+               breaks = scales::pretty_breaks(5)) +
+  labs(x = "", y = "Valores", title = "Núcleos de Inflação", subtitle = "Acumulado 12 meses (em %)",
+       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold")) +
+  scale_color_manual(values = c("ipca_nucleo_medias_aparadas_suavizado" = "red",
+                                "ipca_nucleo_medias_aparadas_sem_suavizado" = "green"),
+                     labels = c("Núcleo Médias Aparadas(suavizado)",
+                                "Núcleo Médias Aparadas(sem suavizado)")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom")
+
+ipca_duraveis <- inflacao %>% 
+  select(1, 2, 17:19) %>% 
+  pivot_longer(-date, names_to = "Tipo", values_to = "Valores") %>%
+  ggplot(aes(x = date, y = Valores)) +
+  geom_line(aes(color = Tipo)) +
+  scale_x_date(date_labels = "%B/%Y",
+               breaks = scales::pretty_breaks(5)) +
+  labs(x = "", y = "Valores", title = "IPCA e Bens Duráveis", subtitle = "Acumulado 12 meses (em %)",
+       caption = "Econdata Analytics, fonte: BCB", colour = "") +
+  scale_color_manual(values = c("ipca" = "dark blue",
+                                "ipca_nao_duraveis" = "red",
+                                "ipca_semi_duraveis" = "green",
+                                "ipca_duraveis" = "orange"),
+                     labels = c("IPCA",
+                                "Não Duráveis",
+                                "Semi Duráveis",
+                                "Duráveis")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18,
+                                  face = "bold"),
+        legend.position = "bottom")
+
+################################################################################
+# Atividade
+################################################################################
+
+graphs_atividade <- list()
+
+plot_titles = data.frame(titles = c("Indicadores da Produção Industrial - Geral",
+                                    "Produção de Óleo Bruto",
+                                    "Produção de LGN",
+                                    "Produção Total de Derivados de Petróleo",
+                                    "Produção de Gás Natural",
+                                    "Consumo de Energia Elétrica - Comercial",
+                                    "Consumo de Energia Elétrica - Residencial",
+                                    "Consumo de Energia Elétrica - Industrial",
+                                    "Consumo de Energia Elétrica - Outros",
+                                    "Consumo de Energia Elétrica - Total",
+                                    "Consumo de Gasolina",
+                                    "Consumo de GLP",
+                                    "Consumo de Óleo Combustível",
+                                    "Consumo de Óleo Diesel",
+                                    "Consumo de Outros Derivados de Petróleo",
+                                    "Consumo de Derivados de Petróleo - Total",
+                                    "Consumo de Álcool Hidratado",
+                                    "Consumo de Álcool Anidro",
+                                    "Consumo de Álcool Carburante",
+                                    "Volume de Vendas no Varejo",
+                                    "IBC-BR"),
+                         unidades = c("Índice (2012 = 100)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "GWh",
+                                      "GWh",
+                                      "GWh",
+                                      "GWh",
+                                      "GWh",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Barris/dia (mil)",
+                                      "Índice",
+                                      "Índice (2002 = 100)"))
+
+
+for (i in 2:22){
+  
+    atividade_temp <- atividade %>%
+      select(1,i)
+    
+    names(atividade_temp) <- c("date", "valor")
+      
+    graphs_atividade[[i - 1]] <- atividade_temp %>%
+      ggplot(aes(x = date, y = valor)) +
+      geom_line(colour = "#021b3d", size = 0.7) +
+      xlab("") + 
+      ylab(as.character(plot_titles[i-1,2])) +
+      ggtitle(as.character(plot_titles[i-1,1]))  +
+      theme_minimal() +   
+      labs(caption = "Econdata Analytics, fonte: BCB") +
+      theme(plot.title = element_text(size = 18, 
+                                    face = 'bold'),
+            axis.title.x = element_text(size = 8)) +
+      scale_y_continuous(labels = scales::comma)
+}
+
+mercado_de_trabalho <- atividade %>%
+  select(date, renda_media_real_habitual_pessoas_ocupadas, renda_media_real_habitual_com_carteira, renda_media_real_habitual_sem_carteira, renda_media_real_habitual_setor_privado,
+         renda_media_real_habitual_setor_publico, renda_media_real_habitual_conta_propria, renda_media_real_habitual_empregadores, empregados_no_setor_publico, 
+         empregados_por_conta_propria, empregados_no_setor_privado_com_carteira, empregados_no_setor_privado_sem_carteira, empregadores, taxa_de_desocupacao)
+#################################
+# Rendas médias reais habituais
+#################################
+
+graph_mercado_de_trabalho <- mercado_de_trabalho %>%
+  pivot_longer(c(renda_media_real_habitual_com_carteira, renda_media_real_habitual_sem_carteira,
+         renda_media_real_habitual_setor_publico, renda_media_real_habitual_conta_propria, renda_media_real_habitual_empregadores), names_to = "categoria", values_to = "renda_media_habitual")%>%
+  ggplot()+
+  geom_line(aes(x = date, y = renda_media_habitual, color = categoria))+
+  labs(title = "Rendimento mensal médio habitual real",
+       caption = "Econdata Analytics, fonte: BCB",
+       y = "Renda mensal real",
+       legend = "Categoria")+
+    theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
+          legend.title = element_text(family='sans',colour='#002060',size=13,face='bold'),
+          axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
+          panel.border = element_blank(), panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+  scale_x_date(limits = c(base::as.Date("01-03-2012", format ="%d-%m-%Y"),tail(mercado_de_trabalho$date, n=1)))+
+  scale_colour_manual(values = c(renda_media_real_habitual_empregadores = "green",
+                                 renda_media_real_habitual_setor_publico = "blue",
+                                 renda_media_real_habitual_com_carteira = "orange",
+                                 renda_media_real_habitual_conta_propria = "brown", 
+                                 renda_media_real_habitual_sem_carteira = "red"),
+                      labels = c("Empregados",
+                                 "Empregados do setor público",
+                                 "Empregados do setor privado com carteira",
+                                 "Empregados do setor por conta própria",
+                                 "Empregados do setor privado sem carteira"))
+#########################################################
+#  Empregados
+#########################################################
+
+empregados <- mercado_de_trabalho %>%
+  pivot_longer(c(empregados_no_setor_publico, empregados_por_conta_propria, empregados_no_setor_privado_com_carteira, empregados_no_setor_privado_sem_carteira,empregadores), names_to = "categoria", values_to = "numero")
+
+graph_empregados <- empregados %>%
+  ggplot()+
+  geom_line(aes(x=date,y=numero,color=categoria))+
+  labs(title = "Decomposição da população ocupada",
+       caption = "Econdata Analytics, fonte: BCB",
+       y = "Número de Pessoas (mil)",
+       legend = "Categoria")+
+    theme(plot.title = element_text(family='sans',hjust = 0.5,colour='#002060',size=13,face='bold'),
+          legend.title = element_text(family='sans',colour='#002060',size=13,face='bold'),
+          axis.title.x = element_text(family="sans",color="cornsilk4", size=8),
+          panel.border = element_blank(), panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+  scale_x_date(limits = c(base::as.Date("01-03-2012", format ="%d-%m-%Y"),tail(mercado_de_trabalho$date, n=1)))+
+  scale_colour_manual(values = c(empregadores= "green",
+                                 empregados_no_setor_publico = "blue",
+                                 empregados_no_setor_privado_com_carteira = "orange",
+                                 empregados_por_conta_propria = "brown", 
+                                 empregados_no_setor_privado_sem_carteira = "red"),
+                      labels = c("Empregadores",
+                                 "Empregados do setor público",
+                                 "Empregados do setor privado com carteira",
+                                 "Empregados por conta própria",
+                                 "Empregados do setor privado sem carteira"))
+################################################################################
+# Taxa de descocupação
+################################################################################
+
+graph_desocupacao <- ggplot(mercado_de_trabalho)+
+    geom_line(aes(x = date, y = taxa_de_desocupacao), colour = "#021b3d", size = 0.7)+
+    xlab("")+ylab("Percentual da Força de Trabalho")+
+    ggtitle("Taxa de Desocupação")+
+    theme_minimal()+
+      labs(caption = "Econdata Analytics, fonte: BCB") +
+    theme(plot.title = element_text(size = 18, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8)) +
+    scale_y_continuous(labels = scales::comma) +
+  scale_x_date(limits = c(base::as.Date("01-03-2012", format ="%d-%m-%Y"),tail(mercado_de_trabalho$date, n=1)))
+
+
+################################################################################
+# Setor Público
+################################################################################
+
+graph_dividaliq_GF_rec_1 <- setor_publico %>%
+  ggplot()+
+  geom_line(aes(x = date, y = gov_federal), color = 'blue')+
+  geom_rect(aes(xmin = as.Date('01/04/2014', format = '%d/%m/%Y'),
+                xmax = as.Date('01/10/2016', format = '%d/%m/%Y'),
+                ymin = -Inf,
+                ymax = Inf), alpha = 0.005)+
+  geom_rect(aes(xmin = as.Date('01/01/2020', format = '%d/%m/%Y'),
+                xmax = as.Date('01/10/2021', format = '%d/%m/%Y'),
+                ymin = -Inf,
+                ymax = Inf), alpha = 0.005)+
+  theme_minimal()+
+  labs(x = '',
+       y = 'Reais',
+       caption = 'Econdata Analytics, Fonte: Banco Central e CODACE',
+       title = 'Dívida Líquida do Governo Federal e Recessões Brasileiras') +
+    theme(plot.title = element_text(size = 13, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8))
+
+graph_dividaliq_GF_rec_2 <- setor_publico %>%
+  ggplot()+
+  geom_line(aes(x = date, y = bc), color = 'blue')+
+  geom_rect(aes(xmin = as.Date('01/04/2014', format = '%d/%m/%Y'),
+                xmax = as.Date('01/10/2016', format = '%d/%m/%Y'),
+                ymin = -Inf,
+                ymax = Inf), alpha = 0.005)+
+  geom_rect(aes(xmin = as.Date('01/01/2020', format = '%d/%m/%Y'),
+                xmax = as.Date('01/10/2021', format = '%d/%m/%Y'),
+                ymin = -Inf,
+                ymax = Inf), alpha = 0.005)+
+  theme_minimal()+
+  labs(x = '',
+       y = 'Reais',
+       caption = 'Econdata Analytics, Fonte: Banco Central e CODACE',
+       title = 'Dívida Líquida do Banco Central e Recessões Brasileiras') +
+    theme(plot.title = element_text(size = 13, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8))
+
+graph_dividaliq_Est_Munic_rec <- setor_publico %>%
+  ggplot()+
+  geom_line(aes(x = date, y = estaduais_e_municipais), color = 'blue')+
+  geom_rect(aes(xmin = as.Date('01/04/2014', format = '%d/%m/%Y'),
+                xmax = as.Date('01/10/2016', format = '%d/%m/%Y'),
+                ymin = -Inf,
+                ymax = Inf), alpha = 0.005)+
+  geom_rect(aes(xmin = as.Date('01/01/2020', format = '%d/%m/%Y'),
+                xmax = as.Date('01/10/2021', format = '%d/%m/%Y'),
+                ymin = -Inf,
+                ymax = Inf), alpha = 0.005)+
+  theme_minimal()+
+  labs(x = '',
+       y = 'Reais',
+       caption = 'Econdata Analytics, Fonte: Banco Central e CODACE',
+       title = 'Dívida Líquida de Estados e Municípios e Recessões Brasileiras') +
+    theme(plot.title = element_text(size = 13, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8))
+
+graph_dividaliq_Estatais_rec <- setor_publico %>%
+  ggplot()+
+  geom_line(aes(x = date, y = estatais), color = 'blue')+
+  geom_rect(aes(xmin = as.Date('01/04/2014', format = '%d/%m/%Y'),
+                xmax = as.Date('01/10/2016', format = '%d/%m/%Y'),
+                ymin = -Inf,
+                ymax = Inf), alpha = 0.005)+
+  geom_rect(aes(xmin = as.Date('01/01/2020', format = '%d/%m/%Y'),
+                xmax = as.Date('01/10/2021', format = '%d/%m/%Y'),
+                ymin = -Inf,
+                ymax = Inf), alpha = 0.005)+
+  theme_minimal()+
+  labs(x = '',
+       y = 'Reais',
+       caption = 'Econdata Analytics, Fonte: Banco Central e CODACE',
+       title = 'Dívida Líquida de Estatais e Recessões Brasileiras') +
+    theme(plot.title = element_text(size = 13, 
+                                    face = 'bold'),
+          axis.title.x = element_text(size = 8))
+```
+
+# Inflação {.tabset}
+
+## ICBR {.tabset}
+
+Neste primeiro painel, é possível observar a evolução na última década do ICBR.
+
+O Índice de Commodities do Banco Central (ICBR) existe como principal indicador nas flutuações relativas ao valor das commodities mais negociadas no Brasil. Observamos no gráfico abaixo, sua variação dentro do período de tempo estudado. Podemos observar também suas desagregações, atribuídas aos setores mais relevantes à nossa análise.
+
+```{r, echo=F, warning=FALSE}
+
+cat("\n")
+
+graph_icbr
+
+
+```
+
+## IPCA {.tabset}
+
+### Gráficos- IPCA {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+cat("\n")
+
+graph_ipca1
+graph_ipca2
+graph_ipca3
+
+```
+
+### Análises {.tabset}
+
+#### Geral {.tabset}
+
+Queda do IPCA agregado nos últimos meses, puxada principalmente pela queda nos setores de transporte e habitação. Além disso, também contribuem com essa queda, diminuições no IPCA dos setores de comunicação, alimentação e bebidas e artigos de residência
+
+Pelos gráficos expostos, podemos ver que o componente de transportes apresentou grande oscilação no período de análise e foi muito impactante para as variações do IPCA no período. Em 2020, é possível ver que houve uma grande queda neste subgrupo como consequência da redução da atividade econômica e da diminuição da demanda interna e externa como consequência da pandemia, apresentando inclusive deflação no agregado de 12 meses em alguns períodos. Já em 2021 e 2022, há um grande aumento da participação do setor para contribuir com os altos níveis de inflação observados no período causados por alguns fatores como aumento do preço do barril do petróleo, depreciação do real, aumento da demanda por combustíveis no período pós-pandêmico e devido à Guerra da Ucrânia. No entanto, mudanças nas tributações sobre os combustíveis feitas pelo governo federal e pelos governos estaduais causaram uma grande diminuição nos preços dos combustíveis, levando a uma diminuição do IPCA de transportes.
+
+#### Transportes {.tabset}
+
+Podemos ver uma deflação acumulada em Transportes até o meio de 2020, com participação bem baixa durante todo o ano, é possível ver essa grande queda nos transportes também nas variações mensais. Causado pela diminuição da demanda internacional e interna por combustível (menor circulação de carros) e queda nos níveis de atividade econômica em razão da Covid.
+
+Grande aumento em 2021 que se mantém em 2022, mas há uma redução contínua a partir de Julho. Aumenta em 2021 foi causado por um forte aumento da gasolina e do diesel causado pela depreciação do real e de um aumento nos preços dos barris de petróleo internacionalmente. Já em 2022, a principal causa da manutenção da grande participação na alta inflação foi a guerra da Ucrânia que foi responsável por aumentar os preços dos combustíveis mundialmente e a continuidade da desvalorização da moeda. No entanto, mudanças nas tributações sobre os combustíveis feitas pelo governo federal e pelos governos estaduais foram os grandes motivadores para a queda acentuada no índice de preços do transporte que é possível observar nos gráficos.
+
+#### Habitação {.tabset}
+
+Outro subgrupo que teve um grande destaque para elevar o IPCA agregado ao longo de 2021 e até o começo de 2022 foi o componente de habitação. Esses sucessivos aumentos mensais que são possíveis observar no componente de habitação foram causados, principalmente, por vários reajustes bem consideráveis nos preços dos botijões de gás e da energia elétrica, causados por uma retenção dos aumentos durante o período pandêmico, em razão das dificuldades financeiras das famílias que foram amplificadas nesse momento, e pela crise hídrica que afetou o país nesse ano, com secas acentuadas em bacias hidrográficas no Centro Oeste e no Sudeste, o que dificultou a produção de energia nas usinas hidrelétricas. No entanto, a pressão inflacionária desse grupo foi em grande parte revertida no ano de 2022, com o fim das cobranças extras de energia causadas pela pandemia e a uma melhora na situação da crise hídrica.
+
+
+#### Alimentação e bebidas {.tabset}
+
+O subgrupo de alimentação e bebidas também apresentou um papel de protagonismo no período de 2020-2022 na contribuição para os altos níveis de inflação no período. Como é possível ver pelo gráfico do IPCA acumulado de 12 meses, esse subgrupo apresentou uma grande elevação no período pandêmico, como consequência de um encarecimento da produção, com a elevação do preço dos insumos, e de uma instabilidade climática, com um período de fortes chuvas seguido por um período de secas que foi responsável por diversas perdas na produção agrícola que contribuíram para a elevação dos preços. Em seguida, após um breve período de desinflação, se desencadeou a Guerra da Ucrânia, gerando aumento nos preços das commodities do setor agrícola em todo o mundo, contribuindo para as pressões inflacionárias no setor que se veem até hoje.
+
+#### Educação {.tabset}
+
+Normalmente no início dos anos tem um aumento dos preços da educação por causa de reajustes nas mensalidades no início do período escolar, durante agosto de 2020 pode-se observar uma variação de -3,47%.
+
+## IPCA- Gráficos Alternativos {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+cat("\n")
+
+indice_de_difusao
+ipca_subgrupos
+ipca_comercializaveis
+ipca_nucleo
+ipca_duraveis
+
+```
+
+
+# Atividade Econômica {.tabset}
+
+## Gráficos {.tabset}
+
+### Indicadores da Produção Industrial - Geral {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[1]]
+
+```
+
+### Produção de Óleo Bruto {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[2]]
+
+```
+
+### Produção de LGN {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[3]]
+
+```
+
+### Produção Total de Derivados de Petróleo {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[4]]
+
+```
+
+### Produção de Gás Natural {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[5]]
+
+```
+
+### Consumo de Energia Elétrica - Comercial {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[6]]
+
+```
+
+### Consumo de Energia Elétrica - Residencial {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[7]]
+
+```
+
+### Consumo de Energia Elétrica - Industrial {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[8]]
+
+```
+
+### Consumo de Energia Elétrica - Outros {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[9]]
+
+```
+
+### Consumo de Energia Elétrica - Total {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[10]]
+
+```
+
+### Consumo de Gasolina {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[11]]
+
+```
+
+### Consumo de GLP {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[12]]
+
+```
+
+### Consumo de Óleo Combustível {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[13]]
+
+```
+
+### Consumo de Óleo Diesel {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[14]]
+
+```
+
+### Consumo de Outros Derivados de Petróleo {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[15]]
+
+```
+
+### Consumo de Derivados de Petróleo - Total {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[16]]
+
+```
+
+### Consumo de Álcool Hidratado {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[17]]
+
+```
+
+### Consumo de Álcool Anidro {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[18]]
+
+```
+
+### Consumo de Álcool Carburante {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[19]]
+
+```
+
+### Volume de Vendas no Varejo {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[20]]
+
+```
+
+### IBC-BR {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graphs_atividade[[21]]
+
+```
+
+### Rendimento Mensal Médio {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graph_mercado_de_trabalho
+
+```
+
+### Decomposição da População Ocupada {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graph_empregados
+
+```
+
+### Taxa de Desocupação {.tabset}
+
+```{r, echo=F, warning=FALSE}
+
+graph_desocupacao
+
+```
+
+## Análises {.tabset}
+
+### Produção Industrial {.tabset}
+
+O indicador da produção industrial compara o volume de produção inicial mês a mês com a média mensal do ano base de 2012. Analisando o gráfico, é possível notar sua sazonalidade com vales acentuados nos meses de dezembro e janeiro e certo crescimento ao longo do ano. Observando tendências de médio prazo parece clara a presença de dois patamares estacionários, um anterior à recessão de 2015 e outro posterior, demonstrando que a produção industrial praticamente não se recuperou dos efeitos dessa crise. Por outro lado, apesar do vale acentuado no início da pandemia, a produção industrial parece no geral ter se recuperado da crise do COVID-19, apesar de um 2021 um pouco abaixo do esperado.
+
+### Volume de vendas do varejo {.tabset}
+
+O índice de volume de vendas no varejo mede a intensidade desse comércio comparando o ao ano de 2014. Observando seu gráfico notamos primeiramente sua acentuada sazonalidade com grande intensificação nas compras de fim de ano. Podemos notar também que o comércio varejista vinha em franca ascensão até 2014, caindo com a crise de 2015 da qual ainda não se recuperou totalmente, já que segue uma tendência de crescimento bem mais suave quando comparada ao início da década. Já a recessão provocada pela pandemia teve caráter bem mais pontual com recuperação completa dos níveis pré-pandêmicos.
+
+### IBC-BR {.tabset}
+
+O IBC-BR tem por base o ano de 2002 e almeja medir a atividade econômica nacional real mensalmente a partir de proxies do volume de produção dos setores agrícola, industrial e de serviços. Examinando o gráfico vemos marcada sazonalidade com queda expressiva da atividade em dezembro e janeiro. Investigando tendências de prazo maior, vemos relativamente acelerado até 2014, ano em que a atividade tem leve queda e depois despenca em 2015, mal tendo se recuperado até o dia de hoje. A pandemia, por outro lado, mostrou ser uma crise de natureza pontual com retomada completa e até crescimento da atividade quando comparada a níveis pré-pandêmicos.
+
+### Decomposição da população ocupada {.tabset}
+
+Observando a decomposição da população ocupada por diferentes categorias de ocupação notamos grande preponderância de empregados do setor privado com carteira e empregados por conta própria, a última provavelmente composta em larga medida por postos de trabalho informais. O número de empregados do setor privado sem carteira e de empregados do setor público têm magnitudes semelhantes e os empregadores vem por último como a categoria de ocupação menos expressiva. A crise de 2015 teve grande impacto sobre a quantidade de empregados do setor privado com carteira, que ainda não se recuperou até hoje. Já o número de empregados por conta própria vem crescendo desde então, possivelmente demonstrando uma tendência de aumento da informalidade. O choque pandêmico afetou as diversas categorias de forma heterogênea: os empregados do setor privado e por conta própria sofreram queda expressiva e imediata, enquanto os empregadores sofreram queda mais lenta e os empregados do setor público mal foram afetados pela crise do COVID-19. Não obstante, todos já retornaram a seus níveis pré-pandêmicos.
+
+### Taxa de desocupação {.tabset}
+
+A taxa de desocupação, também chamada de taxa de desemprego, provém da razão entre a população ocupada e a força de trabalho. Ao analisar seu histórico, é clara certa sazonalidade com maior ocupação no último mês do ano. Examinando suas tendências ao longo do tempo, observa-se um aumento intenso da desocupação após a crise de 2015 da qual a economia ainda não se recuperou completamente. A pandemia, por outro lado, embora tenha provocado também um aumento significativo da desocupação, provou ser um choque temporário com retomada completa no final de 2021 e até queda expressiva em 2022 que foge dos padrões de sazonalidade anteriores.
+
+# Setor Público {.tabset}
+
+## Gráficos {.tabset}
+
+Abaixo, temos uma visualização conjunta dos gráficos:
+
+### Governo Federal 1 {.tabset}
+
+```{r, echo=F}
+
+graph_dividaliq_GF_rec_1
+
+```
+
+### Banco Central {.tabset}
+
+```{r, echo=F}
+
+graph_dividaliq_GF_rec_2
+
+```
+
+### Governos Estaduais e Municipais {.tabset}
+```{r, echo=F}
+
+graph_dividaliq_Est_Munic_rec
+
+```
+
+### Estatais {.tabset}
+```{r, echo=F}
+
+graph_dividaliq_Estatais_rec
+
+```
+
+## Análises {.tabset}
+
+Por último, temos uma série de gráficos que constatam a visão do Setor Público brasileiro, principalmente quanto às suas finanças.
+
+A análise da dívida do Setor publico pode ser dividida em seus quatro componentes principais, sendo eles as dívidas: do Governo Federal, do Banco Central, dos estados e municípios da federação e das empresas estatais. Observamos essa divisão nos gráficos.
+
+Observamos que até a crise de 2014 ambos o governo federal e os estados demonstram uma frequência de moderado aumento do déficit, com uma rápida inclinação na dívida federal durante o período da crise que se mantem até a época da covid, estranhamente vemos a dívida estadual cair durante a crise da covid e a federal continuar com seu crescimento acelerado.
+
+O Banco Central trabalha sua dívida de forma diferente, sendo um dos maiores credores do território nacional, vemos que a dívida do banco central é trabalhada em cima dos ativos em relação aos ativos emitidos ao Governo Federal que o mesmo retem, desta forma, seu gráfico é estudado de forma inversa, em períodos de forte recessão econômica a dívida tende a cair, o que pode parecer estranho, porém quando pensamos no significado econômico vemos que é natural.
+
+Vemos, no entanto, que esses ativos mostram maior intensidade de fluxo no início do período da pandemia, resultado da compra exacerbada de títulos públicos de forma a atingir a meta de taxa para as operações de overnight, retidos no curto prazo, levando a um vale no gráfico, com uma normalização lenta em seu decorrer e um retorno póstumo a pandemia a níveis não demonstrados desde antes da crise de 2014 e finalmente retornando a um nível natural de sazonalidade.
+
+O último dos componentes é a dívida das estatais, que trabalha traçando o aumento da soma do déficit das balanças comerciais das empresas da federação. Vemos que a crise de 2014 afetou fortemente as estatais do Brasil, com um período de instabilidade forte antecedendo a pandemia, e uma queda rápida em expectativa a mesma, sinal da influência do início da pandemia na China no cenário global. Observamos durante a pandemia um retorno aos níveis anteriores de altas dívidas e uma queda ao final da mesma possível influência do cenário de tensões globais e o início da guerra na ucrânia, porém essa tendencia descendente não dura, vemos que no período de 2022 essa dúvida volta a ser lançada verticalmente retornando ao nível visto na expectativa da pandemia.
+
